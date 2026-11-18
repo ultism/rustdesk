@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
@@ -1311,12 +1312,22 @@ class _ImagePaintState extends State<ImagePaint> {
         // both "textureId.value != -1" and "true" seems ok
         final sizeScale = isPeerLinux ? s / displays[i].scale : s;
         if (isWindows) {
-          final width =
-              (displays[i].width * sizeScale * c.devicePixelRatio).round();
-          final height =
-              (displays[i].height * sizeScale * c.devicePixelRatio).round();
-          if (width > 0 && height > 0) {
-            widget.ffi.textureModel.setSuperResolution(display, width, height);
+          if (mainGetLocalBoolOptionSync(kOptionAllowSuperResolution)) {
+            final width =
+                (displays[i].width * sizeScale * c.devicePixelRatio).round();
+            final height =
+                (displays[i].height * sizeScale * c.devicePixelRatio).round();
+            // Cap at the visible view so extreme zooms don't allocate
+            // huge off-screen buffers.
+            final maxWidth = (c.size.width * c.devicePixelRatio).round();
+            final maxHeight = (c.size.height * c.devicePixelRatio).round();
+            final w = min(width, maxWidth);
+            final h = min(height, maxHeight);
+            if (w > 0 && h > 0) {
+              widget.ffi.textureModel.setSuperResolution(display, w, h);
+            }
+          } else {
+            widget.ffi.textureModel.setSuperResolution(display, 0, 0);
           }
         }
         children.add(Positioned(

@@ -592,6 +592,13 @@ class _GeneralState extends State<_General> {
               isServer: false,
             ),
           ),
+        if (isWindows)
+          _OptionCheckBox(
+            context,
+            "Use NVIDIA super resolution",
+            kOptionAllowSuperResolution,
+            isServer: false,
+          ),
       ],
       if (!isWeb && !bind.isCustomClient())
         _OptionCheckBox(

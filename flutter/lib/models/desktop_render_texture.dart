@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_gpu_texture_renderer/flutter_gpu_texture_renderer.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
@@ -66,6 +68,7 @@ class _GpuTexture {
   int? _output;
   int _superResolutionWidth = 0;
   int _superResolutionHeight = 0;
+  Timer? _superResolutionTimer;
 
   int get display => _display;
 
@@ -81,7 +84,16 @@ class _GpuTexture {
     }
     _superResolutionWidth = width;
     _superResolutionHeight = height;
-    platformFFI.setSuperResolution(_sessionId!, _display, width, height);
+    // Debounce: a window drag or zoom step changes the size every frame;
+    // only send once the size has been stable for a moment, so the Rust
+    // pipeline is not rebuilt on every step.
+    _superResolutionTimer?.cancel();
+    _superResolutionTimer = Timer(const Duration(milliseconds: 200), () {
+      final sessionId = _sessionId;
+      if (!_destroying && sessionId != null) {
+        platformFFI.setSuperResolution(sessionId, _display, width, height);
+      }
+    });
   }
 
   create(int d, SessionID sessionId, FFI ffi) {
@@ -112,6 +124,7 @@ class _GpuTexture {
     // must stop texture render, render unregistered texture cause crash
     if (!_destroying && support && _sessionId != null && _textureId != -1) {
       _destroying = true;
+      _superResolutionTimer?.cancel();
       if (unregisterTexture) {
         platformFFI.registerGpuTexture(_sessionId!, _display, 0);
         // sleep for a while to avoid the texture is used after it's unregistered.
